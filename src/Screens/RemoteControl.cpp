@@ -1,7 +1,7 @@
 #include <Loop/LoopManager.h>
 #include <Pins.hpp>
 #include "RemoteControl.h"
-#include "Connection.h"
+#include "../Connection.h"
 #include "Connecting.h"
 #include <Input/Input.h>
 #include <TJpg_Decoder.h>

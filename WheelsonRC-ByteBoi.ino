@@ -2,7 +2,7 @@
 #include <CircuitOS.h>
 #include <ByteBoi.h>
 #include <Loop/LoopManager.h>
-#include "src/Menu/Menu.h"
+#include "src/Screens/Menu.h"
 #include <FS/CompressedFile.h>
 #include <TJpg_Decoder.h>
 

@@ -4,7 +4,7 @@
 
 #include <Support/Context.h>
 #include <Input/InputListener.h>
-#include "Connection.h"
+#include "../Connection.h"
 #include <Util/Task.h>
 
 class RemoteControl : public Context, public ConnectionListener, public InputListener, public LoopListener {

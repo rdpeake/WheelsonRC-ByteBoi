@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 #include <Support/Context.h>
-#include "Connection.h"
+#include "../Connection.h"
 
 class Connecting : public Context, public InputListener, public ConnectionListener {
 public:

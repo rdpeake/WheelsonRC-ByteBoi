@@ -1,8 +1,8 @@
 #include <Pins.hpp>
 #include "Menu.h"
-#include "Button.h"
-#include "../Connecting.h"
-#include "../RemoteControl.h"
+#include "../Elements/Button.h"
+#include "Connecting.h"
+#include "RemoteControl.h"
 #include <Input/Input.h>
 
 Menu::Menu(Display &display) : Context(display){
