@@ -6,6 +6,7 @@
 #include <Input/InputListener.h>
 #include "../Connection.h"
 #include <Util/Task.h>
+#include "../Advertiser.h"
 
 class RemoteControl : public Context, public ConnectionListener, public InputListener, public LoopListener {
 public:
@@ -19,7 +20,7 @@ public:
 	void connected() override;
 	void disconnected() override;
 
-	static void feedFunc(Task* task);
+	static void feedTaskFunc(Task* task);
 	void loop(uint micros) override;
 
 protected:
@@ -27,8 +28,10 @@ protected:
 	void deinit() override;
 
 private:
-	Color* image = nullptr;
 	Task feedTask;
+
+	Color* bbIcon = nullptr;
+	Color* whIcon = nullptr;
 
 	uint8_t command = 0;
 
@@ -36,9 +39,11 @@ private:
 	void buttonReleased(uint i) override;
 
 	void sendCommand();
+	bool feedFunc();
 
 	bool read(uint8_t* buffer, size_t size);
 
+	uint32_t frameReceiveTime = 0;
 };
 
 

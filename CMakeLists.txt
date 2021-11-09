@@ -25,6 +25,7 @@ endif ()
 include_directories(${Arduino15}/packages/cm/hardware/esp32/1.2.4/cores/esp32)
 include_directories(${Arduino15}/packages/cm/hardware/esp32/1.2.4/tools/sdk)
 include_directories(${Arduino15}/packages/cm/hardware/esp32/1.2.4/tools/sdk/include)
+include_directories(${Arduino15}/packages/cm/hardware/esp32/1.2.4/tools/sdk/include/config)
 include_directories(${Arduino15}/packages/cm/hardware/esp32/1.2.4/tools/sdk/include/esp32)
 include_directories(${Arduino15}/packages/cm/hardware/esp32/1.2.4/tools/sdk/include/freertos)
 include_directories(${Arduino15}/packages/cm/hardware/esp32/1.2.4/tools/sdk/include/spi_flash)
@@ -43,7 +44,7 @@ include_directories(${Arduino15}/packages/cm/hardware/esp32/1.2.4/libraries/Circ
 include_directories(${Arduino15}/packages/cm/hardware/esp32/1.2.4/libraries/JPEGDecoder/src)
 include_directories(${Arduino15}/packages/cm/hardware/esp32/1.2.4/libraries/OpenCV-ESP32/src)
 include_directories(${Arduino15}/packages/cm/hardware/esp32/1.2.4/libraries/LovyanGFX/src)
-include_directories(${Arduino15}/packages/cm/hardware/esp32/1.2.4/libraries/LovyanGFX/src)
+include_directories(${Arduino15}/packages/cm/hardware/esp32/1.2.4/libraries/BLE/src)
 
 include_directories(${ArduinoLibs}/ByteBoi-Library/src)
 include_directories(${ArduinoLibs}/cpp-properties/src)
@@ -70,7 +71,7 @@ set(BUILD ${ROOT}/build)
 SET_SOURCE_FILES_PROPERTIES(${CMAKE_PROJECT_NAME}.ino PROPERTIES LANGUAGE CXX)
 
 add_custom_command(OUTPUT ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CMAKE_PROJECT_NAME}.ino.elf
-        COMMAND arduino-cli compile --fqbn ${DEVICE} --output-dir ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} ${CMAKE_PROJECT_NAME}.ino
+        COMMAND arduino-cli -v compile --fqbn ${DEVICE} --output-dir ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} ${CMAKE_PROJECT_NAME}.ino
         DEPENDS ${CMAKE_PROJECT_NAME}.ino ${SOURCES}
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 

@@ -5,14 +5,23 @@
 #include "Connecting.h"
 #include <Input/Input.h>
 #include <TJpg_Decoder.h>
+#include <ByteBoi.h>
+#include <FS/RamFile.h>
 
-RemoteControl::RemoteControl(Display& display) : Context(display), feedTask("RC-Feed", RemoteControl::feedFunc, 2048, this){
+#define printCenter(canvas, y, text) do { canvas->setCursor((canvas->width() - canvas->textWidth(text)) / 2, y); canvas->print(text); } while(0)
+
+RemoteControl::RemoteControl(Display& display) : Context(display), feedTask("RC-Feed", RemoteControl::feedTaskFunc, 2048, this){
 	RemoteControl::pack();
 }
 
 RemoteControl::~RemoteControl(){
-	free(image);
+	RemoteControl::deinit();
 }
+
+#define FRAME_LEN 8
+
+const uint8_t frameStart[FRAME_LEN] = { 0x18, 0x20, 0x55, 0xf2, 0x5a, 0xc0, 0x4d, 0xaa };
+const uint8_t frameEnd[FRAME_LEN] = { 0x42, 0x2c, 0xd9, 0xe3, 0xff, 0xa0, 0x11, 0x01 };
 
 void RemoteControl::start(){
 	if(!Con.connected()){
@@ -20,36 +29,78 @@ void RemoteControl::start(){
 		return;
 	}
 
-	Con.setListener(this);
-	feedTask.start(1, 0);
-	LoopManager::addListener(this);
 	Input::getInstance()->addListener(this);
+	LoopManager::addListener(this);
+
+	Con.setListener(this);
+
+	frameReceiveTime = 0;
 }
 
 void RemoteControl::stop(){
-	feedTask.stop(true);
-	LoopManager::removeListener(this);
-	Con.stop();
-	Con.setListener(nullptr);
 	Input::getInstance()->removeListener(this);
+	LoopManager::removeListener(this);
+
+	Con.setListener(nullptr);
+	Con.stop();
 }
 
 void RemoteControl::draw(){
 	Sprite* canvas = screen.getSprite();
 	canvas->clear(TFT_BLACK);
-	canvas->drawIcon(image, 0, 4, 160, 120);
+	canvas->setTextFont(0);
+	canvas->setTextSize(1);
+	canvas->setTextColor(TFT_WHITE);
+	printCenter(canvas, 55, "Waiting for feed...");
+	Battery.drawIcon(*canvas,143,4);
 }
 
 void RemoteControl::loop(uint micros){
-	WiFiClient& client = Con.getControlClient();
-	if(!client.connected()){
+	if(!Con.connected()){
+		pop();
+		return;
+	}
+
+	WiFiClient& controlClient = Con.getControlClient();
+	WiFiClient& feedClient = Con.getFeedClient();
+	if(!feedClient.connected() || !controlClient.connected()){
+		printf("dc4\n");
 		Con.disconnected();
 		LoopManager::removeListener(this);
 		return;
 	}
+
+	if(!feedFunc()){
+		printf("dc5\n");
+		Con.disconnected();
+		LoopManager::removeListener(this);
+		return;
+	}
+
+	if(frameReceiveTime != 0 && millis() - frameReceiveTime >= 3000){
+		printf("timeout\n");
+		Con.disconnected();
+		LoopManager::removeListener(this);
+		return;
+	}
+
+	Battery.drawIcon(*screen.getSprite(),143,4);
+
+	Sprite* canvas = screen.getSprite();
+	canvas->drawIcon(bbIcon, 126, 4, 15, 6, 1, TFT_TRANSPARENT);
+	canvas->drawIcon(whIcon, 126, 13, 15, 6, 1, TFT_TRANSPARENT);
+
+	screen.commit();
 }
 
 void RemoteControl::buttonPressed(uint i){
+	if(i == BTN_A || i == BTN_C) return;
+
+	if(i == BTN_B){
+		pop();
+		return;
+	}
+
 	switch(i){
 		case BTN_UP:
 			command |= 0b0001;
@@ -69,6 +120,8 @@ void RemoteControl::buttonPressed(uint i){
 }
 
 void RemoteControl::buttonReleased(uint i){
+	if(i == BTN_A || i == BTN_B || i == BTN_C) return;
+
 	switch(i){
 		case BTN_UP:
 			command &= ~0b0001;
@@ -88,13 +141,17 @@ void RemoteControl::buttonReleased(uint i){
 }
 
 void RemoteControl::sendCommand(){
+	printf("Sending %x\n", command);
+
 	WiFiClient& client = Con.getControlClient();
 	if(!client.connected()){
+		printf("dc2\n");
 		Con.disconnected();
 		return;
 	}
 
 	if(client.write(&command, 1) != 1){
+		printf("dc3\n");
 		Con.disconnected();
 		return;
 	}
@@ -114,75 +171,96 @@ bool tft_output(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t* bitmap){
 	return true;
 }
 
-#define FRAME_LEN 8
+bool RemoteControl::feedFunc(){
+	RemoteControl* rc = this;
+	WiFiClient& client = Con.getFeedClient();
 
-const uint8_t frameStart[FRAME_LEN] = { 0x18, 0x20, 0x55, 0xf2, 0x5a, 0xc0, 0x4d, 0xaa };
-const uint8_t frameEnd[FRAME_LEN] = { 0x42, 0x2c, 0xd9, 0xe3, 0xff, 0xa0, 0x11, 0x01 };
+	if(!client.connected()) return false;
 
-void RemoteControl::feedFunc(Task* task){
+	uint8_t *feedBuff = nullptr;
+#define error() printf("out\n"); free(feedBuff); return false
+
+	uint8_t packetFrame[FRAME_LEN];
+	if(!rc->read(packetFrame, FRAME_LEN)){
+		error();
+	}
+
+	if(memcmp(packetFrame, frameStart, FRAME_LEN) != 0){
+		printf("Frame header mismatch. Searching for frame... ");
+
+		size_t match = 0, bytes = 0;
+		while(match != FRAME_LEN){
+			if(!rc->read(packetFrame + match, 1)){
+				error();
+			}
+
+			bytes++;
+
+			if(packetFrame[match] == frameStart[match]){
+				match++;
+			}else{
+				match = 0;
+			}
+		}
+
+		printf("Found after %zu bytes\n", bytes);
+	}
+
+	uint32_t frameSize;
+	if(!rc->read(reinterpret_cast<uint8_t*>(&frameSize), sizeof(frameSize))){
+		error();
+	}
+
+	if(frameSize > 12000){
+		printf("yuge framesize\n");
+		return true;
+	}
+
+	feedBuff = static_cast<uint8_t *>(malloc(frameSize));
+	if(!feedBuff){
+		printf("feedBuff malloc err. frame size: %d B\n", frameSize);
+		return true;
+	}
+
+	if(!rc->read(feedBuff, frameSize)){
+		error();
+	}
+
+	if(!rc->read(packetFrame, FRAME_LEN)){
+		error();
+	}
+
+	if(memcmp(packetFrame, frameEnd, FRAME_LEN) != 0){
+		printf("Missed frame footer.\n");
+	}
+
+	uint8_t level;
+	if(!rc->read(&level, 1)){
+		error();
+	}
+
+	canvas = rc->screen.getSprite();
+	TJpgDec.setJpgScale(1);
+	TJpgDec.setCallback(tft_output);
+	TJpgDec.drawJpg(0, 0, feedBuff, frameSize);
+	canvas->fillRect(0, 0, 160, 2, TFT_BLACK);
+	canvas->fillRect(118, 0, 160, 2, TFT_BLACK);
+
+	free(feedBuff);
+
+	frameReceiveTime = millis();
+
+	Battery.drawIcon(*screen.getSprite(),143,13, level);
+
+	return true;
+}
+
+void RemoteControl::feedTaskFunc(Task* task){
 	RemoteControl* rc = static_cast<RemoteControl*>(task->arg);
 	WiFiClient& client = Con.getFeedClient();
 
 	while(task->running){
-		if(!client.connected()){
-			Con.disconnected();
-			return;
-		}
-
-		uint8_t packetFrame[FRAME_LEN];
-		if(!rc->read(packetFrame, FRAME_LEN)){
-			// handle error
-		}
-
-		if(memcmp(packetFrame, frameStart, FRAME_LEN) != 0){
-			printf("Frame header mismatch. Searching for frame... ");
-
-			size_t match = 0, bytes = 0;
-			while(match != FRAME_LEN){
-				bytes++;
-				rc->read(packetFrame + match, 1);
-				if(packetFrame[match] == frameStart[match]){
-					match++;
-				}else{
-					match = 0;
-				}
-			}
-
-			printf("Found after %zu bytes\n", bytes);
-		}
-
-		uint32_t frameSize;
-		if(!rc->read(reinterpret_cast<uint8_t*>(&frameSize), sizeof(frameSize))){
-			// handle error
-		}
-
-		auto *feedBuff = static_cast<uint8_t *>(malloc(frameSize));
-		if(!feedBuff){
-			printf("feedBuff malloc err. frame size: %d B\n", frameSize);
-			for(;;) delay(1);
-		}
-
-		if(!rc->read(feedBuff, frameSize)){
-			// handle error
-		}
-
-		if(!rc->read(packetFrame, FRAME_LEN)){
-			// handle error
-		}
-
-		if(memcmp(packetFrame, frameEnd, FRAME_LEN) != 0){
-			printf("Missed frame footer.\n");
-		}
-
-		canvas = rc->screen.getSprite();
-		TJpgDec.setJpgScale(1);
-		TJpgDec.setCallback(tft_output);
-		TJpgDec.drawJpg(0, 0, feedBuff, frameSize);
-		canvas->fillRect(0, 0, 160, 2, TFT_BLACK);
-		canvas->fillRect(118, 0, 160, 2, TFT_BLACK);
-		rc->screen.commit();
-
-		free(feedBuff);
+		if(!rc->feedFunc()) return;
 	}
 }
 
@@ -193,9 +271,23 @@ bool RemoteControl::read(uint8_t* buffer, size_t size){
 
 	size_t read = 0;
 	while(read < size){
-		size_t pread = feedClient.read(buffer + read, size - read);
+		/*if(WiFi.softAPgetStationNum() == 0){
+			printf("dc6\n");
+			return false;
+		}*/
+		if(!feedClient.connected()) return false;
+		size_t available = feedClient.available();
+		if(available == 0){
+			delayMicroseconds(100);
+			yield();
+			continue;
+		}
+
+		size_t pread = feedClient.read(buffer + read, min(256L, min(available, size - read)));
 		if(pread == -1){
 			if(!feedClient.connected()) return false;
+
+			printf("-1\n");
 
 			delayMicroseconds(500);
 		}else{
@@ -207,12 +299,29 @@ bool RemoteControl::read(uint8_t* buffer, size_t size){
 }
 
 void RemoteControl::init(){
-	image = static_cast<Color*>(ps_malloc(160 * 120 * 2));
+	auto read = [](const char* path, bool bg = false) -> Color* {
+		fs::File file = ByteBoi.openResource(path, "r");
+
+		if(!file){
+			printf("Error opening SPIFFS file: %s\n", path);
+			return nullptr;
+		}
+
+		Color* buffer = static_cast<Color *>(ps_malloc(file.size()));
+		file.read(reinterpret_cast<uint8_t *>(buffer), file.size());
+		file.close();
+
+		return buffer;
+	};
+
+	bbIcon = read("/mini_bb.raw");
+	whIcon = read("/mini_wh.raw");
 }
 
 void RemoteControl::deinit(){
-	free(image);
-	image = nullptr;
+	free(bbIcon);
+	free(whIcon);
+	bbIcon = whIcon = nullptr;
 }
 
 void RemoteControl::connected(){
@@ -220,7 +329,5 @@ void RemoteControl::connected(){
 }
 
 void RemoteControl::disconnected(){
-	Context* connecting = new Connecting(*screen.getDisplay());
-	connecting->push(this);
+	pop();
 }
-

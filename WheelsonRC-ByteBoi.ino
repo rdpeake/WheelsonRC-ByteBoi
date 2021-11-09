@@ -11,21 +11,22 @@ Color* background = nullptr;
 void setup(){
 	Serial.begin(115200);
 	ByteBoi.begin();
-
-	disableCore0WDT();
-	disableCore1WDT();
+	ByteBoi.setGameID("WheRC");
+	BatteryPopup.enablePopups(true);
+	Sleep.begin();
 
 	TJpgDec.initBuffer();
 
 	fs::File bg = CompressedFile::open(ByteBoi.openResource("/background.raw.hs", "r"), 12, 10);
-	if(!bg){
-		printf("bg not open\n");
-		for(;;);
-	}
 	background = static_cast<Color *>(ps_malloc(160 * 120 * 2));
-	bg.read(reinterpret_cast<uint8_t *>(background), 160 * 120 * 2);
-
-	LoopManager::addListener(ByteBoi.getInput());
+	if(bg){
+		bg.read(reinterpret_cast<uint8_t *>(background), 160 * 120 * 2);
+		bg.close();
+	}else{
+		for(int i = 0; i < 160 * 120; i++){
+			background[i] = C_HEX(000071);
+		}
+	}
 
 	Context::setDeleteOnPop(true);
 

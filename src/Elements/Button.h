@@ -14,7 +14,8 @@ public:
 	void setSelected(bool selected);
 
 private:
-	const char* text = "";
+	String text = "";
+	int nl;
 	bool selected = false;
 
 	const uint borderWidth = 2;

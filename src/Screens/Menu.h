@@ -6,15 +6,25 @@
 #include <Input/InputListener.h>
 #include "../Elements/Button.h"
 
-class Menu : public Context, public InputListener {
+class Menu : public Context, public InputListener, public LoopListener {
 public:
 	Menu(Display &display);
 	void draw() override;
 
 	void start() override;
 	void stop() override;
+	void returned(void* data) override;
+
+	void loop(uint micros) override;
 
 private:
+	String ssid = "";
+	String pass = "";
+	bool ssidEntered = false;
+	bool passEntered = false;
+
+	int8_t quality = 0;
+
 	LinearLayout* layout = nullptr;
 	std::vector<Button*> buttons;
 

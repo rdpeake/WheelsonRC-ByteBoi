@@ -2,14 +2,16 @@
 
 #define printCenter(canvas, y, text) do { canvas->setCursor((canvas->width() - canvas->textWidth(text)) / 2, y); canvas->print(text); } while(0)
 
-Button::Button(ElementContainer *parent, const char* text) : Element(parent), text(text){}
+Button::Button(ElementContainer *parent, const char* text) : Element(parent), text(text){
+	nl = this->text.indexOf('\n');
+}
 
 uint Button::getWidth(){
-	return 130;
+	return 128;
 }
 
 uint Button::getHeight(){
-	return 20;
+	return nl == -1 ? 20 : 27;
 }
 
 void Button::draw(){
@@ -25,7 +27,13 @@ void Button::draw(){
 	canvas->setTextFont(1);
 	canvas->setTextSize(1);
 	canvas->setTextColor(TFT_WHITE);
-	printCenter(canvas, y + 6, text);
+
+	if(nl != -1){
+		printCenter(canvas, y + 5, text.substring(0, nl).c_str());
+		printCenter(canvas, y + 15, text.substring(nl + 1).c_str());
+	}else{
+		printCenter(canvas, y + 6, text.c_str());
+	}
 }
 
 void Button::setSelected(bool selected){
