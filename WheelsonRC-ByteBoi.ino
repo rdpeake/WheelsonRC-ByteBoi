@@ -32,6 +32,7 @@ void setup(){
 
 	Context* menu = new Menu(*ByteBoi.getDisplay());
 	menu->unpack();
+	ByteBoi.splash();
 	menu->start();
 }
 
