@@ -98,9 +98,9 @@ void Menu::buttonPressed(uint i){
 			Context* input = new TextInput(*screen.getDisplay(), "Enter WiFi network", ssid);
 			input->push(this);
 			return;
+		}else if(selectedElement == 2){
+			ByteBoi.backToLauncher();
 		}
-	}else if(selectedElement == 2){
-		ByteBoi.backToLauncher();
 	}
 }
 
