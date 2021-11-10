@@ -94,7 +94,7 @@ void RemoteControl::loop(uint micros){
 }
 
 void RemoteControl::buttonPressed(uint i){
-	if(i == BTN_A || i == BTN_C) return;
+	if(i == BTN_C) return;
 
 	if(i == BTN_B){
 		pop();
@@ -114,6 +114,11 @@ void RemoteControl::buttonPressed(uint i){
 		case BTN_RIGHT:
 			command |= 0b1000;
 			break;
+		case BTN_A:
+			command |= 0b10000;
+			sendCommand();
+			command &= ~0b10000;
+			return;
 	}
 
 	sendCommand();
