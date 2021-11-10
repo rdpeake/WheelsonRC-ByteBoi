@@ -95,7 +95,7 @@ void Menu::buttonPressed(uint i){
 				saveFile.close();
 			}
 
-			Context* input = new TextInput(*screen.getDisplay(), "Enter WiFi network", ssid);
+			Context* input = new TextInput(*screen.getDisplay(), "Enter WiFi network name", ssid);
 			input->push(this);
 			return;
 		}else if(selectedElement == 2){
