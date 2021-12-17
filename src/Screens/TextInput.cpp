@@ -5,7 +5,8 @@
 #include <SPIFFS.h>
 #include <Pins.hpp>
 
-const char TextInput::symbols[] = "!#.,()-_/:%&'*@;<=>^";
+const char TextInput::symbols[] = "!#.,-_/\\:;%&$'\"`*@=|";
+const char TextInput::otherSymbols[] = "<()>[]^{}";
 
 #define printCenter(canvas, y, text) do { canvas->setCursor((canvas->width() - canvas->textWidth(text)) / 2, y); canvas->print(text); } while(0)
 
@@ -90,14 +91,26 @@ char TextInput::getLetter(int i){
 	char letter;
 
 	if(i > 25){
-		if(shiftLetters){
-			if(capitalLetters){
-				letter = symbols[i - 26 + 10];
+		i -= 26;
+
+		if(i > 9){
+			i -= 10;
+
+			if(capitalLetters && shiftLetters){
+				letter = otherSymbols[i + 6];
+			}else if(shiftLetters){
+				letter = otherSymbols[i + 3];
 			}else{
-				letter = symbols[i - 26];
+				letter = otherSymbols[i];
+			}
+		}else if(shiftLetters){
+			if(capitalLetters){
+				letter = symbols[i + 10];
+			}else{
+				letter = symbols[i];
 			}
 		}else{
-			letter = i - 26 + '0';
+			letter = i + '0';
 		}
 	}else{
 		letter = (capitalLetters || shiftLetters) ? 'A' + i : 'a' + i;

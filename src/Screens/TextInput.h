@@ -28,7 +28,8 @@ private:
 	int selectedIndex = 0;
 
 	static const char symbols[];
-	const uint8_t numElements = 41;
+	static const char otherSymbols[];
+	const uint8_t numElements = 44;
 	const uint8_t rows = 5;
 	const uint8_t columns = 9;
 	const uint8_t vSpace = 15;
