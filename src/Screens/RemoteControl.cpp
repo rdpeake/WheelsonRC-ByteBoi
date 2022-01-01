@@ -94,8 +94,6 @@ void RemoteControl::loop(uint micros){
 }
 
 void RemoteControl::buttonPressed(uint i){
-	if(i == BTN_C) return;
-
 	if(i == BTN_B){
 		pop();
 		return;
@@ -113,6 +111,9 @@ void RemoteControl::buttonPressed(uint i){
 			break;
 		case BTN_RIGHT:
 			command |= 0b1000;
+			break;
+		case BTN_C:
+			command ^= 0b100000; //toggle bit 6
 			break;
 		case BTN_A:
 			command |= 0b10000;
