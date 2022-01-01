@@ -7,6 +7,7 @@
 #include <TJpg_Decoder.h>
 #include <ByteBoi.h>
 #include <FS/RamFile.h>
+#include <ByteBoiLED.h>
 
 #define printCenter(canvas, y, text) do { canvas->setCursor((canvas->width() - canvas->textWidth(text)) / 2, y); canvas->print(text); } while(0)
 
@@ -114,6 +115,11 @@ void RemoteControl::buttonPressed(uint i){
 			break;
 		case BTN_C:
 			command ^= 0b100000; //toggle bit 6
+			if (command & 0b100000) {
+				LED.setRGB(LEDColor::GREEN);
+			} else {
+				LED.setRGB(LEDColor::OFF);
+			}
 			break;
 		case BTN_A:
 			command |= 0b10000;
